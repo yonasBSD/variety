@@ -42,7 +42,17 @@ from variety_lib import get_version
 
 # fmt: off
 import gi  # isort:skip
-gi.require_version("GExiv2", "0.10")
+
+# Try newer GExiv2 versions first, fall back to older ones
+for _ver in ("0.16", "0.14", "0.12", "0.10"):
+    try:
+        gi.require_version("GExiv2", _ver)
+        break
+    except ValueError:
+        continue
+else:
+    raise ImportError("No compatible GExiv2 version found")
+
 gi.require_version("PangoCairo", "1.0")
 gi.require_version('Gdk', '3.0')
 from gi.repository import Gdk, GdkPixbuf, GExiv2, Gio, GLib, Pango  # isort:skip
