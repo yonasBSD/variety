@@ -1275,23 +1275,22 @@ class VarietyWindow(Gtk.Window):
             return None
 
         w, h = Util.get_primary_display_size()
-        cmd = "magick %s -scale %dx%d^ " % (shlex.quote(filename), w, h)
+
+        cmd = ["magick", filename, "-scale", f"{w}x{h}^"]
 
         hoffset, voffset = Util.compute_trimmed_offsets(Util.get_size(filename), (w, h))
         clock_filter = self.options.clock_filter
         clock_filter = VarietyWindow.replace_clock_filter_offsets(clock_filter, hoffset, voffset)
         clock_filter = self.replace_clock_filter_fonts(clock_filter)
+        # this should always be called last to keep the clock as close as possible to real time
+        clock_filter = time.strftime(clock_filter, time.localtime())
 
-        clock_filter = time.strftime(
-            clock_filter, time.localtime()
-        )  # this should always be called last
-        logger.info(lambda: "Applying clock filter: " + clock_filter)
+        logger.info(lambda: f"Applying clock filter: {clock_filter}")
+        cmd.extend(shlex.split(clock_filter))
+        cmd.append(target_file)
 
-        cmd += clock_filter
-        cmd += " "
-        cmd += shlex.quote(target_file)
-        logger.info(lambda: "ImageMagick clock cmd: " + cmd)
-        return cmd.encode("utf-8")
+        logger.info(lambda: f"ImageMagick clock args: {cmd}")
+        return cmd
 
     def replace_clock_filter_fonts(self, clock_filter):
         clock_font_name, clock_font_size = Util.gtk_to_fcmatch_font(self.options.clock_font)
@@ -1470,13 +1469,13 @@ class VarietyWindow(Gtk.Window):
                     self.wallpaper_folder, "wallpaper-clock-%s.jpg" % Util.random_hash()
                 )
                 cmd = self.build_imagemagick_clock_cmd(to_set, target_file)
-                result = os.system(cmd)
-                if result == 0:  # success
+                result = subprocess.run(cmd, check=False)
+                if result.returncode == 0:
                     to_set = target_file
                 else:
                     logger.warning(
                         lambda: "Could not execute clock magick command. "
-                        "Missing ImageMagick or bad filter defined? Resultcode: %d" % result
+                        f"Missing ImageMagick or bad filter defined? Exit code: {result.returncode}"
                     )
             return to_set
         except Exception:
