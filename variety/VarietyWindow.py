@@ -1378,17 +1378,16 @@ class VarietyWindow(Gtk.Window):
                 target_file = os.path.join(
                     self.wallpaper_folder, "wallpaper-auto-rotated-%s.jpg" % Util.random_hash()
                 )
-                cmd = "magick %s -auto-orient %s" % (shlex.quote(to_set), shlex.quote(target_file))
-                logger.info(lambda: "ImageMagick auto-rotate cmd: " + cmd)
-                cmd = cmd.encode("utf-8")
+                cmd = ["magick", to_set, "-auto-orient", target_file]
+                logger.info(lambda: f"ImageMagick auto-rotate cmd: {cmd}")
 
-                result = os.system(cmd)
-                if result == 0:  # success
+                result = subprocess.run(cmd, check=False)
+                if result.returncode == 0:
                     to_set = target_file
                 else:
                     logger.warning(
                         lambda: "Could not execute auto-orient magick command. "
-                        "Missing ImageMagick? Resultcode: %d" % result
+                        f"Missing ImageMagick? Exit code: {result.returncode}"
                     )
             return to_set
         except Exception:
