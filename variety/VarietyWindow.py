@@ -1252,22 +1252,23 @@ class VarietyWindow(Gtk.Window):
         if not self.filters:
             return None
 
-        filter = random.choice(self.filters).strip()
-        if not filter:
+        filter_str = random.choice(self.filters).strip()
+        if not filter_str:
             return None
 
         w, h = Util.get_primary_display_size()
-        cmd = "magick %s -scale %dx%d^ " % (shlex.quote(filename), w, h)
+        args = ["magick", filename, "-scale", f"{w}x{h}^"]
 
-        logger.info(lambda: "Applying filter: " + filter)
-        cmd += filter + " "
+        logger.info(lambda: f"Applying filter: {filter_str}")
+        # Replace placeholders BEFORE splitting into a list
+        filter_str = filter_str.replace("%FILEPATH%", filename)
+        filter_str = filter_str.replace("%FILENAME%", os.path.basename(filename))
+        args.extend(shlex.split(filter_str))
 
-        cmd += shlex.quote(target_file)
-        cmd = cmd.replace("%FILEPATH%", shlex.quote(filename))
-        cmd = cmd.replace("%FILENAME%", shlex.quote(os.path.basename(filename)))
+        args.append(target_file)
 
-        logger.info(lambda: "ImageMagick filter cmd: " + cmd)
-        return cmd.encode("utf-8")
+        logger.info(lambda: f"ImageMagick args: {args}")
+        return args
 
     def build_imagemagick_clock_cmd(self, filename, target_file):
         if not (self.options.clock_enabled and self.options.clock_filter.strip()):
@@ -1350,19 +1351,21 @@ class VarietyWindow(Gtk.Window):
                 ):
                     self.post_filter_filename = to_set
                     target_file = os.path.join(
-                        self.wallpaper_folder, "wallpaper-filter-%s.jpg" % Util.random_hash()
+                        self.wallpaper_folder, f"wallpaper-filter-{Util.random_hash()}.jpg"
                     )
+
                     cmd = self.build_imagemagick_filter_cmd(to_set, target_file)
                     if cmd:
-                        result = os.system(cmd)
-                        if result == 0:  # success
+                        result = subprocess.run(cmd, check=False)
+                        if result.returncode == 0:
                             to_set = target_file
                             self.post_filter_filename = to_set
                         else:
                             logger.warning(
                                 lambda: "Could not execute filter magick command. "
-                                "Missing ImageMagick or bad filter defined? Resultcode: %d" % result
+                                f"Missing ImageMagick or bad filter defined? Exit code: {result.returncode}"
                             )
+
                 else:
                     to_set = self.post_filter_filename
             return to_set
