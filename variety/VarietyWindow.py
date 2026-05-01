@@ -14,6 +14,7 @@
 # You should have received a copy of the GNU General Public License along
 # with this program.  If not, see <http://www.gnu.org/licenses/>.
 ### END LICENSE
+import functools
 import json
 import logging
 import os
@@ -1248,6 +1249,14 @@ class VarietyWindow(Gtk.Window):
 
         threading.Timer(0, _do_set_wp).start()
 
+    @staticmethod
+    @functools.cache
+    def get_magick_cmd() -> str:
+        """Returns the path to the ImageMagick convert binary"""
+        if cmd := shutil.which("magick"):
+            return cmd
+        return "convert"
+
     def build_imagemagick_filter_cmd(self, filename, target_file):
         if not self.filters:
             return None
@@ -1257,7 +1266,7 @@ class VarietyWindow(Gtk.Window):
             return None
 
         w, h = Util.get_primary_display_size()
-        args = ["magick", filename, "-scale", f"{w}x{h}^"]
+        args = [self.get_magick_cmd(), filename, "-scale", f"{w}x{h}^"]
 
         logger.info(lambda: f"Applying filter: {filter_str}")
         # Replace placeholders BEFORE splitting into a list
@@ -1276,7 +1285,7 @@ class VarietyWindow(Gtk.Window):
 
         w, h = Util.get_primary_display_size()
 
-        cmd = ["magick", filename, "-scale", f"{w}x{h}^"]
+        cmd = [self.get_magick_cmd(), filename, "-scale", f"{w}x{h}^"]
 
         hoffset, voffset = Util.compute_trimmed_offsets(Util.get_size(filename), (w, h))
         clock_filter = self.options.clock_filter
@@ -1378,7 +1387,7 @@ class VarietyWindow(Gtk.Window):
                 target_file = os.path.join(
                     self.wallpaper_folder, "wallpaper-auto-rotated-%s.jpg" % Util.random_hash()
                 )
-                cmd = ["magick", to_set, "-auto-orient", target_file]
+                cmd = [self.get_magick_cmd(), to_set, "-auto-orient", target_file]
                 logger.info(lambda: f"ImageMagick auto-rotate cmd: {cmd}")
 
                 result = subprocess.run(cmd, check=False)
@@ -1419,7 +1428,7 @@ class VarietyWindow(Gtk.Window):
                 target_file = os.path.join(
                     self.wallpaper_folder, "wallpaper-zoomed-%s.jpg" % Util.random_hash()
                 )
-                cmd = ["magick", to_set, *shlex.split(mode_data.imagemagick_cmd), target_file]
+                cmd = [self.get_magick_cmd(), to_set, *shlex.split(mode_data.imagemagick_cmd), target_file]
                 logger.info(lambda: f"ImageMagick display mode cmd: {cmd}")
 
                 result = subprocess.run(cmd, check=False)
