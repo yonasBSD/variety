@@ -1414,29 +1414,22 @@ class VarietyWindow(Gtk.Window):
                 mode_data = modes[0].fn(to_set)
                 if mode_data.fixed_image_path:
                     return mode_data.fixed_image_path, mode_data.set_wallpaper_param
-                elif not mode_data.imagemagick_cmd:
+                if not mode_data.imagemagick_cmd:
                     return to_set, mode_data.set_wallpaper_param
-                else:
-                    target_file = os.path.join(
-                        self.wallpaper_folder, "wallpaper-zoomed-%s.jpg" % Util.random_hash()
-                    )
-                    cmd = "magick %s %s %s" % (
-                        shlex.quote(to_set),
-                        mode_data.imagemagick_cmd,
-                        shlex.quote(target_file),
-                    )
-                    logger.info(lambda: "ImageMagick display mode cmd: " + cmd)
-                    cmd = cmd.encode("utf-8")
+                target_file = os.path.join(
+                    self.wallpaper_folder, "wallpaper-zoomed-%s.jpg" % Util.random_hash()
+                )
+                cmd = ["magick", to_set, *shlex.split(mode_data.imagemagick_cmd), target_file]
+                logger.info(lambda: f"ImageMagick display mode cmd: {cmd}")
 
-                    result = os.system(cmd)
-                    if result == 0:  # success
-                        return target_file, mode
-                    else:
-                        logger.warning(
-                            lambda: "Could not execute auto-orient magick command. "
-                            "Missing ImageMagick? Resultcode: %d" % result
-                        )
-                        return to_set, "os"
+                result = subprocess.run(cmd, check=False)
+                if result.returncode == 0:
+                    return target_file, mode
+                logger.warning(
+                    lambda: "Could not execute auto-orient magick command. "
+                    f"Missing ImageMagick? Exit code: {result.returncode}"
+                )
+                return to_set, "os"
             return to_set, mode
         except Exception:
             logger.exception(lambda: "Could not apply display mode logic:")
