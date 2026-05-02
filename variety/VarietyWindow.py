@@ -14,6 +14,7 @@
 # You should have received a copy of the GNU General Public License along
 # with this program.  If not, see <http://www.gnu.org/licenses/>.
 ### END LICENSE
+import functools
 import json
 import logging
 import os
@@ -1248,49 +1249,57 @@ class VarietyWindow(Gtk.Window):
 
         threading.Timer(0, _do_set_wp).start()
 
+    @staticmethod
+    @functools.cache
+    def get_magick_cmd() -> str:
+        """Returns the path to the ImageMagick convert binary"""
+        if cmd := shutil.which("magick"):
+            return cmd
+        return "convert"
+
     def build_imagemagick_filter_cmd(self, filename, target_file):
         if not self.filters:
             return None
 
-        filter = random.choice(self.filters).strip()
-        if not filter:
+        filter_str = random.choice(self.filters).strip()
+        if not filter_str:
             return None
 
         w, h = Util.get_primary_display_size()
-        cmd = "magick %s -scale %dx%d^ " % (shlex.quote(filename), w, h)
+        args = [self.get_magick_cmd(), filename, "-scale", f"{w}x{h}^"]
 
-        logger.info(lambda: "Applying filter: " + filter)
-        cmd += filter + " "
+        logger.info(lambda: f"Applying filter: {filter_str}")
+        # Replace placeholders BEFORE splitting into a list
+        filter_str = filter_str.replace("%FILEPATH%", filename)
+        filter_str = filter_str.replace("%FILENAME%", os.path.basename(filename))
+        args.extend(shlex.split(filter_str))
 
-        cmd += shlex.quote(target_file)
-        cmd = cmd.replace("%FILEPATH%", shlex.quote(filename))
-        cmd = cmd.replace("%FILENAME%", shlex.quote(os.path.basename(filename)))
+        args.append(target_file)
 
-        logger.info(lambda: "ImageMagick filter cmd: " + cmd)
-        return cmd.encode("utf-8")
+        logger.info(lambda: f"ImageMagick args: {args}")
+        return args
 
     def build_imagemagick_clock_cmd(self, filename, target_file):
         if not (self.options.clock_enabled and self.options.clock_filter.strip()):
             return None
 
         w, h = Util.get_primary_display_size()
-        cmd = "magick %s -scale %dx%d^ " % (shlex.quote(filename), w, h)
+
+        cmd = [self.get_magick_cmd(), filename, "-scale", f"{w}x{h}^"]
 
         hoffset, voffset = Util.compute_trimmed_offsets(Util.get_size(filename), (w, h))
         clock_filter = self.options.clock_filter
         clock_filter = VarietyWindow.replace_clock_filter_offsets(clock_filter, hoffset, voffset)
         clock_filter = self.replace_clock_filter_fonts(clock_filter)
+        # this should always be called last to keep the clock as close as possible to real time
+        clock_filter = time.strftime(clock_filter, time.localtime())
 
-        clock_filter = time.strftime(
-            clock_filter, time.localtime()
-        )  # this should always be called last
-        logger.info(lambda: "Applying clock filter: " + clock_filter)
+        logger.info(lambda: f"Applying clock filter: {clock_filter}")
+        cmd.extend(shlex.split(clock_filter))
+        cmd.append(target_file)
 
-        cmd += clock_filter
-        cmd += " "
-        cmd += shlex.quote(target_file)
-        logger.info(lambda: "ImageMagick clock cmd: " + cmd)
-        return cmd.encode("utf-8")
+        logger.info(lambda: f"ImageMagick clock args: {cmd}")
+        return cmd
 
     def replace_clock_filter_fonts(self, clock_filter):
         clock_font_name, clock_font_size = Util.gtk_to_fcmatch_font(self.options.clock_font)
@@ -1350,19 +1359,21 @@ class VarietyWindow(Gtk.Window):
                 ):
                     self.post_filter_filename = to_set
                     target_file = os.path.join(
-                        self.wallpaper_folder, "wallpaper-filter-%s.jpg" % Util.random_hash()
+                        self.wallpaper_folder, f"wallpaper-filter-{Util.random_hash()}.jpg"
                     )
+
                     cmd = self.build_imagemagick_filter_cmd(to_set, target_file)
                     if cmd:
-                        result = os.system(cmd)
-                        if result == 0:  # success
+                        result = subprocess.run(cmd, check=False)
+                        if result.returncode == 0:
                             to_set = target_file
                             self.post_filter_filename = to_set
                         else:
                             logger.warning(
                                 lambda: "Could not execute filter magick command. "
-                                "Missing ImageMagick or bad filter defined? Resultcode: %d" % result
+                                f"Missing ImageMagick or bad filter defined? Exit code: {result.returncode}"
                             )
+
                 else:
                     to_set = self.post_filter_filename
             return to_set
@@ -1376,17 +1387,16 @@ class VarietyWindow(Gtk.Window):
                 target_file = os.path.join(
                     self.wallpaper_folder, "wallpaper-auto-rotated-%s.jpg" % Util.random_hash()
                 )
-                cmd = "magick %s -auto-orient %s" % (shlex.quote(to_set), shlex.quote(target_file))
-                logger.info(lambda: "ImageMagick auto-rotate cmd: " + cmd)
-                cmd = cmd.encode("utf-8")
+                cmd = [self.get_magick_cmd(), to_set, "-auto-orient", target_file]
+                logger.info(lambda: f"ImageMagick auto-rotate cmd: {cmd}")
 
-                result = os.system(cmd)
-                if result == 0:  # success
+                result = subprocess.run(cmd, check=False)
+                if result.returncode == 0:
                     to_set = target_file
                 else:
                     logger.warning(
                         lambda: "Could not execute auto-orient magick command. "
-                        "Missing ImageMagick? Resultcode: %d" % result
+                        f"Missing ImageMagick? Exit code: {result.returncode}"
                     )
             return to_set
         except Exception:
@@ -1413,29 +1423,22 @@ class VarietyWindow(Gtk.Window):
                 mode_data = modes[0].fn(to_set)
                 if mode_data.fixed_image_path:
                     return mode_data.fixed_image_path, mode_data.set_wallpaper_param
-                elif not mode_data.imagemagick_cmd:
+                if not mode_data.imagemagick_cmd:
                     return to_set, mode_data.set_wallpaper_param
-                else:
-                    target_file = os.path.join(
-                        self.wallpaper_folder, "wallpaper-zoomed-%s.jpg" % Util.random_hash()
-                    )
-                    cmd = "magick %s %s %s" % (
-                        shlex.quote(to_set),
-                        mode_data.imagemagick_cmd,
-                        shlex.quote(target_file),
-                    )
-                    logger.info(lambda: "ImageMagick display mode cmd: " + cmd)
-                    cmd = cmd.encode("utf-8")
+                target_file = os.path.join(
+                    self.wallpaper_folder, "wallpaper-zoomed-%s.jpg" % Util.random_hash()
+                )
+                cmd = [self.get_magick_cmd(), to_set, *shlex.split(mode_data.imagemagick_cmd), target_file]
+                logger.info(lambda: f"ImageMagick display mode cmd: {cmd}")
 
-                    result = os.system(cmd)
-                    if result == 0:  # success
-                        return target_file, mode
-                    else:
-                        logger.warning(
-                            lambda: "Could not execute auto-orient magick command. "
-                            "Missing ImageMagick? Resultcode: %d" % result
-                        )
-                        return to_set, "os"
+                result = subprocess.run(cmd, check=False)
+                if result.returncode == 0:
+                    return target_file, mode
+                logger.warning(
+                    lambda: "Could not execute auto-orient magick command. "
+                    f"Missing ImageMagick? Exit code: {result.returncode}"
+                )
+                return to_set, "os"
             return to_set, mode
         except Exception:
             logger.exception(lambda: "Could not apply display mode logic:")
@@ -1467,13 +1470,13 @@ class VarietyWindow(Gtk.Window):
                     self.wallpaper_folder, "wallpaper-clock-%s.jpg" % Util.random_hash()
                 )
                 cmd = self.build_imagemagick_clock_cmd(to_set, target_file)
-                result = os.system(cmd)
-                if result == 0:  # success
+                result = subprocess.run(cmd, check=False)
+                if result.returncode == 0:
                     to_set = target_file
                 else:
                     logger.warning(
                         lambda: "Could not execute clock magick command. "
-                        "Missing ImageMagick or bad filter defined? Resultcode: %d" % result
+                        f"Missing ImageMagick or bad filter defined? Exit code: {result.returncode}"
                     )
             return to_set
         except Exception:
