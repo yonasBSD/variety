@@ -11,8 +11,20 @@ authors = [
     { name = "James Lu", email = "james@overdrivenetworks.com" }
 ]
 description = "Wallpaper changer, downloader and manager"
-dynamic = ["version", "readme"] 
+dynamic = ["version", "readme"]
 urls = { Homepage = "https://github.com/varietywalls/variety" }
+dependencies = [
+    "beautifulsoup4",
+    "lxml",
+    "configobj",
+    "pycairo",
+    "requests",
+    "pygobject",
+    "pillow",
+    "httplib2",
+    "packaging",
+    "dbus-python",
+]
 
 [project.scripts]
 variety = "variety:main"

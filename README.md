@@ -69,7 +69,7 @@ To actually run Variety, you will also need the following:
 - GTK+ 3
 - gexiv2
 - libnotify
-- Python libraries: see `requirements.txt`
+- Python libraries: see `pyproject.toml`
 - *Optional*: imagemagick (for wallpaper filters)
 - *Optional*: feh or nitrogen: used by default to set wallpapers on i3, openbox, and other WMs
 - *Optional*: libayatana-appindicator (for AppIndicator support)
