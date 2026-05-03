@@ -26,10 +26,10 @@ To run Variety you will need Python 3.9+.
 Variety is available in the distro repositories of:
 
 - [Arch Linux](https://archlinux.org/packages/extra/any/variety/)
-- [Debian 9+](https://packages.debian.org/search?keywords=variety)
+- [Debian](https://packages.debian.org/search?keywords=variety)
 - [Fedora](https://www.rpmfind.net/linux/rpm2html/search.php?query=variety)
 - [OpenSUSE](https://software.opensuse.org/package/variety?search_term=variety)
-- [Ubuntu 16.04+](https://packages.ubuntu.com/search?keywords=variety)
+- [Ubuntu](https://packages.ubuntu.com/search?keywords=variety)
 - [NixOS](https://search.nixos.org/packages?show=variety&type=packages&query=variety)
 
 On a recent Ubuntu or Debian-based system (Universe repository has to be enabled on Ubuntu):
