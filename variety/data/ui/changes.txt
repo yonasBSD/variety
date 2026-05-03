@@ -1,3 +1,12 @@
+0.9.0
+    NOTE TO PACKAGERS: Variety 0.9.0 switches from distutils-extra to setuptools and importlib.resources.
+        - The variety.desktop entry now needs to be manually installed, as this is not handled by setuptools automatically
+        - Media, scripts, and other resources are now bundled in the "variety" Python package
+    Fix #834: Add support for newer GExiv2 versions (Fedora 44)
+    Fix #823: Fall back to convert if magick command is not found (Ubuntu 24.04 and earlier)
+    Fix #838: Fix "Fit within screen, pad with a blurred background" display mode blurring the whole image
+    Update Spanish translations
+
 0.9.0-beta1
     Improvement #795/#800: fix Python 3.14 support; switch to setuptools-gettext and virtualenv for local development
     Remove broken Flickr and National Geographic downloaders
@@ -6,7 +15,7 @@
     Feature #814: add support for KDE Active Blur wallpaper plugin
     Feature #794: Add --meta CLI option to print wallpaper info
     Fix #728: use magick command instead of deprecated convert
-    Fix #807: add support for newer versions of Budgie (#807)
+    Fix #807: add support for newer versions of Budgie
     Fix #815: XFCE wallpaper cannot be set on clean installs due to missing backdrop properties
     Fix #802: fix killing old swaybg processes
     Improvement #792: add .webp support
