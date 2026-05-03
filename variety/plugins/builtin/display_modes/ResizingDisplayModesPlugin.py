@@ -11,10 +11,10 @@ from variety.Util import Util, _
 IMAGEMAGICK_ZOOM = "-scale %Wx%H^ "
 IMAGEMAGICK_FIT_WITH_BLACK = "-resize %Wx%H -size %Wx%H xc:black +swap -gravity center -composite"
 IMAGEMAGICK_FIT_WITH_BLUR = (
-    "-write mpr:src +delete "
-    "\( mpr:src -resize %Wx%H^ -gravity center -extent %Wx%H -scale 10% -blur 0x3 -resize 1000% \) "
-    "\( mpr:src -resize %Wx%H -background none -gravity center -extent %Wx%H \) "
-    "-composite"
+    r"-write mpr:src +delete "
+    r"\( mpr:src -resize %Wx%H^ -gravity center -extent %Wx%H -scale 10% -blur 0x3 -resize 1000% \) "
+    r"\( mpr:src -resize %Wx%H -background none -gravity center -extent %Wx%H \) "
+    r"-composite"
 )
 IMAGEMAGICK_TILE = "-write mpr:x -delete -1 -size %Wx%H tile:mpr:x "
 
